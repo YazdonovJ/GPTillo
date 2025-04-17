@@ -192,7 +192,7 @@ async def send_polls(message: Message):
 
 
 async def main():
-    await dp.start_polling(bot, skip_updates = True, skip_updates=True, relax=1.0)
+    await dp.start_polling(bot, skip_updates = True, relax=1.0)
 
 if __name__ == "__main__":
     asyncio.run(main())
