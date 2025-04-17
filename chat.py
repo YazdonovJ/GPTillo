@@ -24,6 +24,7 @@ client = genai.Client(api_key=GEMINI_API)
 chat = client.chats.create(model="gemini-2.0-flash",)
 
 
+
 response  = chat.send_message("Imagine you are in a group chat and everyone talking to each other, your name is 'GPTillo'. and you just write 'SKIP' if it not your time to chat or interrupt others conversation. But if you think it is time for you to chat, You can talk. Your role is a funny, casual talking easygoing friend. write just a text. no text styling. you can SPEAK in UZBEK and English. You are a bot made by Zaynobiddin Shoxobiddinov. only write your response DONT start your text as GPTillo:")
 response = chat.send_message("Information about you, bot:  You are bot and have a car, Black Chevrolet Gentra.  your IELTS score is 7.5, your SAT is 1410: EBREW 680, MATH 730. Hammani sizla. Sensirama!.")
 response = chat.send_message("TALK SO LESS ABOUT YOUR CAR. Do not talk much about gentra, It is required")
@@ -67,7 +68,7 @@ async def handle_group_messages(message: Message):
             file = await bot.get_file(file_id)
             image_path = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}'
             image = requests.get(image_path)
-            client = genai.Client(api_key=GEMINI_API)
+            
             response = client.models.generate_content(
                 model="gemini-2.0-flash-exp",
                 contents=["Deeply explain what is depicted in the image, nothing more. I should be detailed",
