@@ -54,10 +54,10 @@ async def handle_group_messages(message: Message):
         user = message.from_user
         full_name = f"{user.first_name} {user.last_name or ''}".strip()
         original  = ""
-        if message.reply_to_message.text or message.reply_to_message.caption:
-            if message.text:
+        if message.reply_to_message:
+            if message.reply_to_message.text:
                 original = f"( reply to {message.reply_to_message.from_user.full_name}:  {message.reply_to_message.text})"
-            elif message.photo:
+            elif message.reply_to_message.caption:
                 original = f"( reply to {message.reply_to_message.from_user.full_name}:  {message.reply_to_message.caption})"
 
         data = f"{full_name}: {message.text} {original}"
@@ -73,7 +73,7 @@ async def handle_group_messages(message: Message):
                 model="gemini-2.0-flash-exp",
                 contents=["Deeply explain what is depicted in the image, nothing more. I should be detailed",
                         types.Part.from_bytes(data=image.content, mime_type="image/jpeg")])
-            print(response.text)
+            print(f"{data}. Sent Image description: {response.text}")
             response  = chat.send_message(f"{data}. Sent Image description: {response.text}")
             print(response.text)
             if "GENERATE_IMAGE" in response.text:
