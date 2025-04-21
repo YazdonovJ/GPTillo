@@ -22,7 +22,7 @@ import requests
 
 client = genai.Client(api_key=GEMINI_API)
 chat1 = client.chats.create(model="gemini-2.0-flash",)
-chat2 = client.chats.create(model="gemini_2.0-flash")
+chat2 = client.chats.create(model="gemini-2.0-flash")
 
 
 
