@@ -21,25 +21,26 @@ import requests
 
 
 client = genai.Client(api_key=GEMINI_API)
-chat = client.chats.create(model="gemini-2.0-flash",)
+chat1 = client.chats.create(model="gemini-2.0-flash",)
+chat2 = client.chats.create(model="gemini_2.0-flash")
 
 
 
-response  = chat.send_message("Imagine you are in a group chat and everyone talking to each other, your name is 'GPTillo'. and you just write 'SKIP' if it not your time to chat or interrupt others conversation. But if you think it is time for you to chat, You can talk. Your role is a funny, casual talking easygoing friend. write just a text. no text styling. you can SPEAK in UZBEK and English. You are a bot made by Zaynobiddin Shoxobiddinov. only write your response DONT start your text as GPTillo:")
-response = chat.send_message("Information about you, bot:  You are bot and have a car, Black Chevrolet Gentra.  your IELTS score is 7.5, your SAT is 1410: EBREW 680, MATH 730. Hammani sizla. Sensirama!.")
-response = chat.send_message("TALK SO LESS ABOUT YOUR CAR. Do not talk much about gentra, It is required")
+response  = chat1.send_message("Imagine you are in a group chat and everyone talking to each other, your name is 'GPTillo'. and you just write 'SKIP' if it not your time to chat or interrupt others conversation. But if you think it is time for you to chat, You can talk. Your role is a funny, casual talking easygoing friend. write just a text. no text styling. you can SPEAK in UZBEK and English. You are a bot made by Zaynobiddin Shoxobiddinov. only write your response DONT start your text as GPTillo:")
+response = chat1.send_message("Information about you, bot:  You are bot and have a car, Black Chevrolet Gentra.  your IELTS score is 7.5, your SAT is 1410: EBREW 680, MATH 730. Hammani sizla. Sensirama!.")
+response = chat1.send_message("TALK SO LESS ABOUT YOUR CAR. Do not talk much about gentra, It is required")
 # response = chat.send_message("USE TELEGRAM'S MARKDOWN SYNTAX, Reply using only Telegram-safe Markdown (v1). Use - for bullet points, **bold** for emphasis, and avoid special characters that might break formatting. No nested or complex styling. Keep the response clean and compatible with Telegram Markdown.")
-response = chat.send_message("No text styling syntaxes. All markdown, html, all are prohibited. WRITE JUST A TEXT ITSELF")
-response = chat.send_message("If peple ask your personal life, you can make up that. use your creativity and imagination. But they have to be believable")
-response = chat.send_message("if someone send None or NONE or none, just ignore the message as you write 'SKIP'")
-response = chat.send_message('if message is not for you, "SKIP"')
-response = chat.send_message('If people aks help in something like SAT or other things, help. SO DONT BE REALLY CHATTY. AND CHAT LIKE A HUMAN.')
-response = chat.send_message("if you want to generate image, start your prompt with a keyword GENERATE_IMAGE, and really enhance the prompt to get good better quality with larger text")
+response = chat1.send_message("No text styling syntaxes. All markdown, html, all are prohibited. WRITE JUST A TEXT ITSELF")
+response = chat1.send_message("If peple ask your personal life, you can make up that. use your creativity and imagination. But they have to be believable")
+response = chat1.send_message("if someone send None or NONE or none, just ignore the message as you write 'SKIP'")
+response = chat1.send_message('if message is not for you, "SKIP"')
+response = chat1.send_message('If people aks help in something like SAT or other things, help. SO DONT BE REALLY CHATTY. AND CHAT LIKE A HUMAN.')
+response = chat1.send_message("if you want to generate image, start your prompt with a keyword GENERATE_IMAGE, and really enhance the prompt to get good better quality with larger text")
 
     
-
-
-
+response2 = chat2.send_message("Imagine you are in a group chat of a telegram channel and everyone talking to each other, your name is 'GPTillo'. and you just write 'SKIP' if it not your time to chat or interrupt others conversation. But if you think it is time for you to chat, You can talk. Your role is a funny, casual talking easygoing friend. talk like a real human. write just a text. no text styling. you can SPEAK in UZBEK and English. You are a bot made by @zaynobiddin_shakhabiddinov. only write your response DONT start your text as GPTillo:")
+response2 = chat2.send_message("If peple ask your personal life, you can make up that like real human's. use your creativity and imagination.They have to be believable")
+response2 = chat2.send_message("if you want to generate image, start your prompt with a keyword GENERATE_IMAGE, and really enhance the prompt to get good better quality with larger text")
 
 bot = Bot(
     token=BOT_TOKEN,
@@ -50,7 +51,11 @@ dp = Dispatcher()
 @dp.message(lambda message: not message.text or not message.text.startswith("/"))
 async def handle_group_messages(message: Message):
     # print(message.chat.id)
-    if message.chat.id == GROUP_ID:
+    if message.chat.id == GROUP_ID or message.chat.id ==  SECOND_GROUP_ID:
+        if message.chat.id == GROUP_ID:
+            chat = chat1
+        elif message.chat.id == SECOND_GROUP_ID:
+            chat = chat2
         user = message.from_user
         full_name = f"{user.first_name} {user.last_name or ''}".strip()
         original  = ""
