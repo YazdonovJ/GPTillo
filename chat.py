@@ -94,7 +94,7 @@ async def handle_group_messages(message: Message):
         elif "SKIP" not in response.text:
             await message.answer(
                 escape_markdown(f"{response.text}"),
-                parse_mode=ParseMode.MARKDOWN,
+                # parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
             
@@ -120,7 +120,7 @@ async def handle_group_messages(message: Message):
             print(escape_markdown(f"{response.text}"))
             await message.answer(
                 escape_markdown(f"{response.text}"),
-                parse_mode=ParseMode.MARKDOWN,
+                # parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
 
