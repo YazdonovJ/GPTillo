@@ -3,6 +3,7 @@ from google.genai import types
 from PIL import Image
 from io import BytesIO
 import base64
+import uuid
 from tokens import GEMINI_API
 
 client = genai.Client(api_key=GEMINI_API)
@@ -20,8 +21,9 @@ def generate_image(text):
                 print(part.text)
             elif part.inline_data is not None:
                 image = Image.open(BytesIO((part.inline_data.data)))
-                image.save('image.png')
-                return 'image.png'
+                name = str(uuid.uuid4())
+                image.save(f'{name}.webp')
+                return f'{name}.webp'
     except:
         return "error"
   

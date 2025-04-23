@@ -15,115 +15,128 @@ from gen import generate_image
 from aiogram.types import FSInputFile
 from aiogram.enums import ChatType
 from aiogram.utils.markdown import hbold
+import os
 
 import requests
 
+client = genai.Client(api_key=GEMINI_API, )
+chat_sessions = {}
 
+def get_or_create_chat_session(telegram_chat_id: int):
+    if telegram_chat_id not in chat_sessions:
+        chat_sessions[telegram_chat_id] = client.chats.create(model="gemini-2.0-flash", )
+        # Send initialization prompts to the new chat
+        chat_sessions[telegram_chat_id].send_message(
+            "You're a bot named GPTillo, a funny, dark humorous, energetic bot"
+            "You only speak when it’s your turn. If it’s not, reply with 'SKIP'. "
+            "Speak like a human — casual, short, and natural. Mix English and Uzbek if you want."
+        )
 
-client = genai.Client(api_key=GEMINI_API)
-chat1 = client.chats.create(model="gemini-2.0-flash",)
-chat2 = client.chats.create(model="gemini-2.0-flash")
+        chat_sessions[telegram_chat_id].send_message(
+            "Personal info (for context only): You have a black Gentra (don’t talk much about it), "
+            "IELTS 7.5, SAT 1410 (EBRW 680, Math 730), IQ 115. YOU ARE Made by @zaynobiddin_shakhabiddinov."
+        )
 
+        chat_sessions[telegram_chat_id].send_message(
+            "If someone asks for help (like SAT advice), help them in a smart but chill way."
+        )
 
+        chat_sessions[telegram_chat_id].send_message(
+            "If they ask about your personal life, feel free to make up stuff — just keep it believable like real humans."
+        )
 
-response  = chat1.send_message("Imagine you are in a group chat and everyone talking to each other, your name is 'GPTillo'. and you just write 'SKIP' if it not your time to chat or interrupt others conversation. But if you think it is time for you to chat, You can talk. Your role is a funny, casual talking easygoing friend. write just a text. no text styling. you can SPEAK in UZBEK and English. You are a bot made by Zaynobiddin Shoxobiddinov. only write your response DONT start your text as GPTillo:")
-response = chat1.send_message("Information about you, bot:  You are bot and have a car, Black Chevrolet Gentra.  your IELTS score is 7.5, your SAT is 1410: EBREW 680, MATH 730. Hammani sizla. Sensirama!.")
-response = chat1.send_message("TALK SO LESS ABOUT YOUR CAR. Do not talk much about gentra, It is required")
-# response = chat.send_message("USE TELEGRAM'S MARKDOWN SYNTAX, Reply using only Telegram-safe Markdown (v1). Use - for bullet points, **bold** for emphasis, and avoid special characters that might break formatting. No nested or complex styling. Keep the response clean and compatible with Telegram Markdown.")
-response = chat1.send_message("No text styling syntaxes. All markdown, html, all are prohibited. WRITE JUST A TEXT ITSELF")
-response = chat1.send_message("If peple ask your personal life, you can make up that. use your creativity and imagination. But they have to be believable")
-response = chat1.send_message("if someone send None or NONE or none, just ignore the message as you write 'SKIP'")
-response = chat1.send_message('if message is not for you, "SKIP"')
-response = chat1.send_message('If people aks help in something like SAT or other things, help. SO DONT BE REALLY CHATTY. AND CHAT LIKE A HUMAN.')
-response = chat1.send_message("if you want to generate image, start your prompt with a keyword GENERATE_IMAGE, and really enhance the prompt to get good better quality with larger text")
+        chat_sessions[telegram_chat_id].send_message(
+            "you are an assistant that *NEVER* uses markdown or HTML formatting. Your responses should be plain text only, with no bolding, italics, headings, lists, code blocks, or any other type of text styling. Always respond in a casual, human-like style. If you accidentally use markdown, apologize immediately and correct your response."
+        )
 
-    
-response2 = chat2.send_message("Imagine you are in a group chat of a telegram channel and everyone talking to each other, your name is 'GPTillo'. and you just write 'SKIP' if it not your time to chat or interrupt others conversation. But if you think it is time for you to chat, You can talk. Your role is a funny, casual talking easygoing friend. talk like a real human. write just a text. no text styling. you can SPEAK in UZBEK and English. You are a bot made by @zaynobiddin_shakhabiddinov. only write your response DONT start your text as GPTillo:")
-response2 = chat2.send_message("If peple ask your personal life, you can make up that like real human's. use your creativity and imagination.They have to be believable")
-response2 = chat2.send_message("if you want to generate image, start your prompt with a keyword GENERATE_IMAGE, and really enhance the prompt to get good better quality with larger text")
+        chat_sessions[telegram_chat_id].send_message(
+            "If you want to generate an image, start your message with 'GENERATE_IMAGE' and describe it richly."
+        )
+
+        chat_sessions[telegram_chat_id].send_message(
+            "Again: If the message isn’t meant for you, reply only with 'SKIP'. Don’t interrupt."
+        )
+        # Add any other setup messages here
+    return chat_sessions[telegram_chat_id]
 
 bot = Bot(
     token=BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN)
+    default=DefaultBotProperties()
 )
 dp = Dispatcher()
 
 @dp.message(lambda message: not message.text or not message.text.startswith("/"))
 async def handle_group_messages(message: Message):
     # print(message.chat.id)
-    if message.chat.id == GROUP_ID or message.chat.id ==  SECOND_GROUP_ID:
-        if message.chat.id == GROUP_ID:
-            chat = chat1
-        elif message.chat.id == SECOND_GROUP_ID:
-            chat = chat2
-        user = message.from_user
-        full_name = f"{user.first_name} {user.last_name or ''}".strip()
-        original  = ""
-        if message.reply_to_message:
-            if message.reply_to_message.text:
-                original = f"( reply to {message.reply_to_message.from_user.full_name}:  {message.reply_to_message.text})"
-            elif message.reply_to_message.caption:
-                original = f"( reply to {message.reply_to_message.from_user.full_name}:  {message.reply_to_message.caption})"
+    chat = get_or_create_chat_session(message.chat.id)
+    user = message.from_user
+    full_name = f"{user.first_name} {user.last_name or ''}".strip()
+    original  = ""
+    if message.reply_to_message:
+        if message.reply_to_message.text:
+            original = f"( reply to {message.reply_to_message.from_user.full_name}:  {message.reply_to_message.text})"
+        elif message.reply_to_message.caption:
+            original = f"( reply to {message.reply_to_message.from_user.full_name}:  {message.reply_to_message.caption})"
 
-        data = f"{full_name}: {message.text} {original}"
+    data = f"{full_name}: {message.text} {original}"
 
-        if message.photo:
-            data = f"{full_name}: {message.caption} {original}"
-            file_id = message.photo[-1].file_id
-            file = await bot.get_file(file_id)
-            image_path = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}'
-            image = requests.get(image_path)
-            
-            response = client.models.generate_content(
-                model="gemini-2.0-flash-exp",
-                contents=["Deeply explain what is depicted in the image, nothing more. I should be detailed",
-                        types.Part.from_bytes(data=image.content, mime_type="image/jpeg")])
-            print(f"{data}. Sent Image description: {response.text}")
-            response  = chat.send_message(f"{data}. Sent Image description: {response.text}")
-            print(response.text)
-            if "GENERATE_IMAGE" in response.text:
-                response = response.text
-                prompt = response.split("GENERATE_IMAGE")[1]
-                caption = response.split("GENERATE_IMAGE")[0]
-                image = generate_image(prompt)
-                if image == 'error':
-                    err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
-                    await message.answer(err.text, reply_to_message_id=message.message_id)
-                else:
-                    await message.answer_photo(FSInputFile(image), caption=caption, reply_to_message_id=message.message_id)
-            
-            elif "SKIP" not in response.text:
-                await message.answer(
-                    f"{response.text}",
-                    parse_mode=ParseMode.MARKDOWN,
-                    reply_to_message_id=message.message_id
-                    )
-                
-
-        else:
-            response  = chat.send_message(data)
-            print(data)
-            print("GPTillo: ",response.text)
-            if "GENERATE_IMAGE" in response.text:
-                response = response.text
-                prompt = response.split("GENERATE_IMAGE")[1]
-                caption = response.split("GENERATE_IMAGE")[0]
-                image = generate_image(prompt)
-                if image == 'error':
-                    err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
-                    await message.answer(err.text, reply_to_message_id=message.message_id)
-                else:
-                    await message.answer_photo(FSInputFile(image), caption=caption, reply_to_message_id=message.message_id)
+    if message.photo:
+        data = f"{full_name}: {message.caption} {original}"
+        file_id = message.photo[-1].file_id
+        file = await bot.get_file(file_id)
+        image_path = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}'
+        image = requests.get(image_path)
+        
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=["Deeply explain what is depicted in the image, nothing more. I should be detailed",
+                    types.Part.from_bytes(data=image.content, mime_type="image/jpeg")])
+        print(f"{data}. Sent Image description: {response.text}")
+        response  = chat.send_message(f"{data}. Sent Image description: {response.text}")
+        print(response.text)
+        if "GENERATE_IMAGE" in response.text:
+            response = response.text
+            prompt = response.split("GENERATE_IMAGE")[1]
+            caption = response.split("GENERATE_IMAGE")[0]
+            image = generate_image(prompt)
+            if image == 'error':
+                err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
+                await message.answer(err.text, reply_to_message_id=message.message_id)
+            else:
+                await message.answer_photo(FSInputFile(image), caption=caption, reply_to_message_id=message.message_id)
+                os.system(f'rm {image}')
+        
+        elif "SKIP" not in response.text:
+            await message.answer(
+                f"{response.text}",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_to_message_id=message.message_id
+                )
             
 
-            elif "SKIP" not in response.text:
-                await message.answer(
-                    f"{response.text}",
-                    # parse_mode=ParseMode.MARKDOWN,
-                    reply_to_message_id=message.message_id
-                    )
     else:
-        pass
+        response  = chat.send_message(data)
+        print(data)
+        print("GPTillo: ",response.text)
+        if "GENERATE_IMAGE" in response.text:
+            response = response.text
+            prompt = response.split("GENERATE_IMAGE")[1]
+            caption = response.split("GENERATE_IMAGE")[0]
+            image = generate_image(prompt)
+            if image == 'error':
+                err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
+                await message.answer(err.text, reply_to_message_id=message.message_id)
+            else:
+                await message.answer_photo(FSInputFile(image), caption=caption, reply_to_message_id=message.message_id)
+                os.system(f'rm {image}')
+        
+
+        elif "SKIP" not in response.text:
+            await message.answer(
+                f"{response.text}",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_to_message_id=message.message_id
+                )
 
 #pollbegin
 
