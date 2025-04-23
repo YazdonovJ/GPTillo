@@ -46,7 +46,7 @@ def get_or_create_chat_session(telegram_chat_id: int):
 
 bot = Bot(
     token=BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN)
+    default=DefaultBotProperties()
 )
 dp = Dispatcher()
 
