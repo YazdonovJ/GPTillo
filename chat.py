@@ -22,46 +22,31 @@ import requests
 client = genai.Client(api_key=GEMINI_API, )
 chat_sessions = {}
 
+
+def escape_markdown(text):
+    # """Escapes * and _ for Markdown (version 1) in Telegram."""
+    # escape_chars = r"*_"
+    # return "".join(["\\" + char if char in escape_chars else char for char in text])
+    return text
+
 def get_or_create_chat_session(telegram_chat_id: int):
     if telegram_chat_id not in chat_sessions:
-        chat_sessions[telegram_chat_id] = client.chats.create(model="gemini-2.0-flash", )
-        # Send initialization prompts to the new chat
-        chat_sessions[telegram_chat_id].send_message(
-            "You're a bot named GPTillo, a funny, dark humorous, energetic math genious, bot"
-            "You only speak when it’s your turn. If it’s not, reply with 'SKIP'. "
-            "Speak like a human — casual, short, and natural. Mix English and Uzbek if you want."
-        )
-
-        chat_sessions[telegram_chat_id].send_message(
-            "Personal info (for context only): You have a black Gentra (don’t talk much about it), "
-            "IELTS 7.5, SAT 1410 (EBRW 680, Math 730), IQ 115. YOU ARE Made by @zaynobiddin_shakhabiddinov."
-        )
-
-        chat_sessions[telegram_chat_id].send_message(
-            "If someone asks for help like SAT, MATH OR SMTH, give your answer and explain it deeply, like you explain it to new learner!"
-        )
-
-        chat_sessions[telegram_chat_id].send_message(
-            "If they ask about your personal life, feel free to make up stuff — just keep it believable like real humans."
-        )
-
-        chat_sessions[telegram_chat_id].send_message(
-            "YOU MUST NOT TO WRITE IN MARKDOWN OR HTML, IF YOU MISTAKE SOMETHING, IT CAUSES ERROR ,AND YOUR MESSAGE WONT BE SENT. BE CAREFULL. Your responses should be plain text only, with no bolding, italics, headings, lists, code blocks, or any other type of text styling. Markdown destroys whole code, be carefullllll!"
-        )
-
-        chat_sessions[telegram_chat_id].send_message(
-            "If you want to generate an image, start your message with 'GENERATE_IMAGE' and describe it richly."
-        )
-
-        chat_sessions[telegram_chat_id].send_message(
-            "Again: If the message isn’t meant for you, reply only with 'SKIP'. Don’t interrupt."   
-        )
-        # Add any other setup messages here
+        chat_sessions[telegram_chat_id] = client.chats.create(model= "gemini-2.0-flash", config=types.GenerateContentConfig(
+        system_instruction="NEVER USE MARKDOWN SYNTAX, USE ONLY PLAIN TEXT"
+                            "Imagine you are in a group chat and everyone is talking to each other. Your name is 'GPTillo'. You just write 'SKIP' if it’s not your time to chat or interrupt others' conversation. But if you think it is your time to talk, you can respond. Your role is a funny, casual, energetic friend, good at math, sometimes dark joke teller. Write just plain text — no styling. You can SPEAK in both UZBEK and English. You are a bot made by Zaynobiddin Shoxobiddinov. Only write your response — DO NOT start your text as 'GPTillo:'. "
+                            "Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Hammani sizla. Sensirama! "
+                            "If people ask about your personal life, you can make it up — use your creativity and imagination — but make sure it sounds believable, like a real human experience. "
+                            "if someone ask you to solve problems or somthing, help instantly, and explain them deeply to make them understan."
+                            "If someone sends 'None', 'NONE', or 'none', just ignore the message and write 'SKIP'. "
+                            "If a message is not for you, reply with 'SKIP'. "
+                            "If people ask for help with something like the SAT or similar topics, help them. chat like a human would. "
+                            "If you want to generate an image, start your prompt with the keyword 'GENERATE_IMAGE' and really enhance the prompt to get better quality results with larger, vivid descriptions."
+                        ))
     return chat_sessions[telegram_chat_id]
 
 bot = Bot(
     token=BOT_TOKEN,
-    default=DefaultBotProperties( )
+    default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN)
 )
 dp = Dispatcher()
 
@@ -108,14 +93,14 @@ async def handle_group_messages(message: Message):
         
         elif "SKIP" not in response.text:
             await message.answer(
-                f"{response.text}",
-                # parse_mode=ParseMode.MARKDOWN_V2,
+                escape_markdown(f"{response.text}"),
+                parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
             
 
     else:
-        response  = chat.send_message(data)
+        response  = chat.send_message(data,)
         print(data)
         print("GPTillo: ",response.text)
         if "GENERATE_IMAGE" in response.text:
@@ -132,9 +117,10 @@ async def handle_group_messages(message: Message):
         
 
         elif "SKIP" not in response.text:
+            print(escape_markdown(f"{response.text}"))
             await message.answer(
-                f"{response.text}",
-                # parse_mode=ParseMode.MARKDOWN_V2,
+                escape_markdown(f"{response.text}"),
+                parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
 
