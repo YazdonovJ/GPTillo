@@ -46,7 +46,7 @@ def get_or_create_chat_session(telegram_chat_id: int):
         )
 
         chat_sessions[telegram_chat_id].send_message(
-            "you are an assistant that *NEVER* uses markdown or HTML formatting. Your responses should be plain text only, with no bolding, italics, headings, lists, code blocks, or any other type of text styling. Always respond in a casual, human-like style. If you accidentally use markdown, apologize immediately and correct your response."
+            "YOU MUST NOT TO WRITE IN MARKDOWN OR HTML, IF YOU MISTAKE SOMETHING, IT CAUSES ERROR ,AND YOUR MESSAGE WONT BE SENT. BE CAREFULL. Your responses should be plain text only, with no bolding, italics, headings, lists, code blocks, or any other type of text styling. Markdown destroys whole code, be carefullllll!"
         )
 
         chat_sessions[telegram_chat_id].send_message(
@@ -54,14 +54,14 @@ def get_or_create_chat_session(telegram_chat_id: int):
         )
 
         chat_sessions[telegram_chat_id].send_message(
-            "Again: If the message isn’t meant for you, reply only with 'SKIP'. Don’t interrupt."
+            "Again: If the message isn’t meant for you, reply only with 'SKIP'. Don’t interrupt."   
         )
         # Add any other setup messages here
     return chat_sessions[telegram_chat_id]
 
 bot = Bot(
     token=BOT_TOKEN,
-    default=DefaultBotProperties()
+    default=DefaultBotProperties( )
 )
 dp = Dispatcher()
 
@@ -109,7 +109,7 @@ async def handle_group_messages(message: Message):
         elif "SKIP" not in response.text:
             await message.answer(
                 f"{response.text}",
-                parse_mode=ParseMode.MARKDOWN,
+                # parse_mode=ParseMode.MARKDOWN_V2,
                 reply_to_message_id=message.message_id
                 )
             
@@ -134,7 +134,7 @@ async def handle_group_messages(message: Message):
         elif "SKIP" not in response.text:
             await message.answer(
                 f"{response.text}",
-                parse_mode=ParseMode.MARKDOWN,
+                # parse_mode=ParseMode.MARKDOWN_V2,
                 reply_to_message_id=message.message_id
                 )
 
