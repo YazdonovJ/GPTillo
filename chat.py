@@ -52,7 +52,6 @@ dp = Dispatcher()
 
 @dp.message(lambda message: not message.text or not message.text.startswith("/"))
 async def handle_group_messages(message: Message):
-    # print(message.chat.id)
     chat = get_or_create_chat_session(message.chat.id)
     user = message.from_user
     full_name = f"{user.first_name} {user.last_name or ''}".strip()
@@ -76,9 +75,9 @@ async def handle_group_messages(message: Message):
             model="gemini-2.0-flash-exp",
             contents=["Deeply explain what is depicted in the image, nothing more. I should be detailed",
                     types.Part.from_bytes(data=image.content, mime_type="image/jpeg")])
-        print(f"{data}. Sent Image description: {response.text}")
+        # print(f"{data}. Sent Image description: {response.text}")
         response  = chat.send_message(f"{data}. Sent Image description: {response.text}")
-        print(response.text)
+        # print(response.text)
         if "GENERATE_IMAGE" in response.text:
             response = response.text
             prompt = response.split("GENERATE_IMAGE")[1]
@@ -101,8 +100,8 @@ async def handle_group_messages(message: Message):
 
     else:
         response  = chat.send_message(data,)
-        print(data)
-        print("GPTillo: ",response.text)
+        # print(data)
+        # print("GPTillo: ",response.text)
         if "GENERATE_IMAGE" in response.text:
             response = response.text
             prompt = response.split("GENERATE_IMAGE")[1]
@@ -117,7 +116,6 @@ async def handle_group_messages(message: Message):
         
 
         elif "SKIP" not in response.text:
-            print(escape_markdown(f"{response.text}"))
             await message.answer(
                 escape_markdown(f"{response.text}"),
                 # parse_mode=ParseMode.MARKDOWN,
