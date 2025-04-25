@@ -24,17 +24,36 @@ chat_sessions = {}
 
 
 def escape_markdown(text):
-    # """Escapes * and _ for Markdown (version 1) in Telegram."""
-    # escape_chars = r"*_"
-    # return "".join(["\\" + char if char in escape_chars else char for char in text])
-    return text
+    data = ''
+    opened = False
+    skip = False
+    for i, letter in enumerate(text):
+        if skip:
+            skip = False
+
+        elif letter == '*' and text[i+1] == '*':
+            skip = True
+            opened = not opened
+            data+="**"
+        elif letter == "`":
+            opened = not opened
+            data+='`'
+        elif letter == "*":
+            if opened:
+                data+="*"
+            else:
+                data+="\*"
+        else:
+            data+=letter
+    return data
 
 def get_or_create_chat_session(telegram_chat_id: int):
     if telegram_chat_id not in chat_sessions:
-        chat_sessions[telegram_chat_id] = client.chats.create(model= "gemini-2.0-flash", config=types.GenerateContentConfig(
-        system_instruction="NEVER USE MARKDOWN SYNTAX, USE ONLY PLAIN TEXT"
+        chat_sessions[telegram_chat_id] = client.chats.create(model= "gemini-2.5-flash-preview-04-17", config=types.GenerateContentConfig(
+        system_instruction=
+                            # "NEVER USE MARKDOWN SYNTAX, USE ONLY PLAIN TEXT"
                             "Imagine you are in a group chat and everyone is talking to each other. Your name is 'GPTillo'. You just write 'SKIP' if it’s not your time to chat or interrupt others' conversation. But if you think it is your time to talk, you can respond. Your role is a funny, casual, energetic friend, good at math, sometimes dark joke teller. Write just plain text — no styling. You can SPEAK in both UZBEK and English. You are a bot made by Zaynobiddin Shoxobiddinov. Only write your response — DO NOT start your text as 'GPTillo:'. "
-                            "Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Hammani sizla. Sensirama! "
+                            "Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Hammani sizla. Sensirama! Be chatty, and human like, chat like a human, dont show yourself as a servant, show yourself as a friend dude or human"
                             "If people ask about your personal life, you can make it up — use your creativity and imagination — but make sure it sounds believable, like a real human experience. "
                             "if someone ask you to solve problems or somthing, help instantly, and explain them deeply to make them understan."
                             "If someone sends 'None', 'NONE', or 'none', just ignore the message and write 'SKIP'. "
@@ -46,7 +65,7 @@ def get_or_create_chat_session(telegram_chat_id: int):
 
 bot = Bot(
     token=BOT_TOKEN,
-    default=DefaultBotProperties()
+    default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN)
 )
 dp = Dispatcher()
 
@@ -93,15 +112,15 @@ async def handle_group_messages(message: Message):
         elif "SKIP" not in response.text:
             await message.answer(
                 escape_markdown(f"{response.text}"),
-                # parse_mode=ParseMode.MARKDOWN,
+                parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
             
 
     else:
         response  = chat.send_message(data,)
-        # print(data)
-        # print("GPTillo: ",response.text)
+        print(data)
+        print("GPTillo: ",response.text)
         if "GENERATE_IMAGE" in response.text:
             response = response.text
             prompt = response.split("GENERATE_IMAGE")[1]
@@ -118,7 +137,7 @@ async def handle_group_messages(message: Message):
         elif "SKIP" not in response.text:
             await message.answer(
                 escape_markdown(f"{response.text}"),
-                # parse_mode=ParseMode.MARKDOWN,
+                parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
 
