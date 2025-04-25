@@ -106,7 +106,7 @@ async def handle_group_messages(message: Message):
                 err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
                 await message.answer(err.text, reply_to_message_id=message.message_id)
             else:
-                await message.answer_photo(FSInputFile(image), caption=caption, reply_to_message_id=message.message_id)
+                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=caption, reply_to_message_id=message.message_id)
                 os.system(f'rm {image}')
         
         elif "SKIP" not in response.text:
@@ -130,7 +130,7 @@ async def handle_group_messages(message: Message):
                 err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
                 await message.answer(err.text, reply_to_message_id=message.message_id)
             else:
-                await message.answer_photo(FSInputFile(image), caption=caption, reply_to_message_id=message.message_id)
+                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=caption, reply_to_message_id=message.message_id)
                 os.system(f'rm {image}')
         
 
