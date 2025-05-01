@@ -1,4 +1,4 @@
-#GPTillo – Large Language Mode for Telegram
+# GPTillo – Large Language Mode for Telegram
 
 GPTillo is a conversational AI Telegram bot powered by Google Gemini API. It's designed to interact in group chats as a funny, casual, and energetic "friend" with various capabilities (those can be configured)
 Difference between normal AI chatbots with GPTillo is that GPTillo can interact with many people in telegram groups as well.
