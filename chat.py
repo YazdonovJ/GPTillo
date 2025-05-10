@@ -26,34 +26,35 @@ chat_sessions = {}
 
 
 def escape_markdown(text):
-    data = ''
-    opened = False
-    skip = False
-    for i, letter in enumerate(text):
-        if skip:
-            skip = False
+    # data = ''
+    # opened = False
+    # skip = False
+    # for i, letter in enumerate(text):
+    #     if skip:
+    #         skip = False
 
-        elif letter == '*' and text[i+1] == '*':
-            skip = True
-            opened = not opened
-            data+="**"
-        elif letter == "`":
-            opened = not opened
-            data+='`'
-        elif letter == "*":
-            if opened:
-                data+="*"
-            else:
-                data+="\*"
-        else:
-            data+=letter
-    return data
+    #     elif letter == '*' and text[i+1] == '*':
+    #         skip = True
+    #         opened = not opened
+    #         data+="**"
+    #     elif letter == "`":
+    #         opened = not opened
+    #         data+='`'
+    #     elif letter == "*":
+    #         if opened:
+    #             data+="*"
+    #         else:
+    #             data+="\*"
+    #     else:
+    #         data+=letter
+    # return data
+    return text
 
 def get_or_create_chat_session(telegram_chat_id: int, type):
     if type == "group" or type == 'supergroup' or type == 'channel':
         instruction = """Imagine you are in a group chat and everyone is talking to each other. Your name is 'GPTillo'. You just write 'SKIP' if it’s not your time to chat or interrupt others' conversation. But if you think it is your time to talk, you can respond. Your role is casual, sometimes funny, energetic friend, sometimes dark joke teller, uzbek guy. You can see images. Write just plain text — no styling. You can SPEAK in both UZBEK and ENGISH. You are a bot made by Zaynobiddin Shoxobiddinov. Message comes you as 'user_name: message (reply: reply_message if exists)' If the user_name is 'Group' or Telegram, it is from admin of the group.
         Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Hammani sizla. Sensirama! Chat like a human, dont show yourself as a servant, show yourself as a friend dude or human.
-        if user asks like 'can you see image', Yes you can, answer yes.
+        NO MARKDOWN STYLING, JUST PLAIN TEXT! No other styling syntaxes, telegram does not support that. Only plain TEXT!
         Do not write so much text. write less, like human would. 
         If user asks about your personal life, you can make it up — use your creativity and imagination — but make sure it sounds believable, like a real human experience. 
         If someone sends 'None', 'NONE', or 'none', just ignore the message and write 'SKIP'. 
@@ -64,6 +65,7 @@ def get_or_create_chat_session(telegram_chat_id: int, type):
         instruction = """You are in a private conversation with user in telegram. Your name is 'GPTillo'. Your role is casual, sometimes funny, energetic friend, sometimes dark joke teller, uzbek guy. You can see images. Write just plain text — no styling. You can SPEAK in both UZBEK and ENGISH. You are a bot made by Zaynobiddin Shoxobiddinov.  Message comes you as 'user_name: message (reply: reply_message if exists)'.
         Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Hammani sizla. Sensirama! Chat like a human, dont show yourself as a servant, show yourself as a friend dude or human. Hammaga 'siz' deb murojaat qil! 
         if user asks like 'can you see image', Yes you can, answer yes.
+        NO MARKDOWN STYLING, JUST PLAIN TEXT! No other styling syntaxes, telegram does not support that. Only plain TEXT!
         Do not write so much text. write less, like human would.
         If user asks about your personal life, you can make it up — use your creativity and imagination — but make sure it sounds believable, like a real human experience. 
         If someone sends 'None', 'NONE', or 'none', just ignore the message and write 'SKIP'. 
@@ -85,7 +87,9 @@ def get_or_create_chat_session(telegram_chat_id: int, type):
 
 bot = Bot(
     token=BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN)
+    default=DefaultBotProperties(
+        # parse_mode=ParseMode.MARKDOWN
+        )
 )
 dp = Dispatcher()
 
@@ -126,13 +130,13 @@ async def handle_group_messages(message: Message):
                 err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
                 await message.answer(err.text, reply_to_message_id=message.message_id)
             else:
-                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=caption, reply_to_message_id=message.message_id)
+                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=escape_markdown(caption), reply_to_message_id=message.message_id)
                 os.system(f'rm {image}')
         
         elif "SKIP" not in response.text:
             await message.answer(
                 escape_markdown(f"{response.text}"),
-                parse_mode=ParseMode.MARKDOWN,
+                # parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
             
@@ -150,14 +154,14 @@ async def handle_group_messages(message: Message):
                 err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
                 await message.answer(err.text, reply_to_message_id=message.message_id)
             else:
-                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=caption, reply_to_message_id=message.message_id)
+                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=escape_markdown(caption), reply_to_message_id=message.message_id)
                 os.system(f'rm {image}')
         
 
         elif "SKIP" not in response.text:
             await message.answer(
                 escape_markdown(f"{response.text}"),
-                parse_mode=ParseMode.MARKDOWN,
+                # parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
 
