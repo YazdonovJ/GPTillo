@@ -1,7 +1,7 @@
 from aiogram import Bot, Dispatcher, types
 import aiogram
 from aiogram.enums import ParseMode
-from aiogram.types import Message
+from aiogram.types import Message, ChatMemberUpdated
 from aiogram.filters import Command
 from aiogram.filters import CommandStart
 import asyncio
@@ -20,6 +20,9 @@ from PIL import Image
 from io import BytesIO
 
 import requests
+
+
+groups_list = []
 
 client = genai.Client(api_key=GEMINI_API, )
 chat_sessions = {}
@@ -95,7 +98,10 @@ dp = Dispatcher()
 
 @dp.message(lambda message: not message.text or not message.text.startswith("/"))
 async def handle_group_messages(message: Message):
+    global active_groups
     chat = get_or_create_chat_session(message.chat.id, message.chat.type)
+    if message.chat.id not in groups_list and message.chat.type in ['supergroup', 'group']:
+        groups_list.append(message.chat.id)
     user = message.from_user
     full_name = f"{user.first_name} {user.last_name or ''}".strip()
     original  = ""
@@ -164,6 +170,26 @@ async def handle_group_messages(message: Message):
                 # parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
+
+@dp.my_chat_member()
+async def handle_bot_status_change(event: ChatMemberUpdated):
+    global groups_list
+    chat = event.chat
+    new_status = event.new_chat_member.status
+
+    if chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        if new_status in ("administrator"):
+            groups_list.append(chat.id)
+            print(f"✅ Bot added to: {chat.title} ({chat.id})")
+        elif new_status in ("left", "kicked"):
+            groups_list.remove(chat.id)
+            print(f"❌ Bot removed from: {chat.title} ({chat.id})")
+
+
+@dp.message(Command("groups"))
+async def pollmath_handler(message:Message):
+    await message.answer(f"Gptillo {len(groups_list)}ta guruhlarga a'zo bo'lgan")
+
 
 #pollbegin
 
