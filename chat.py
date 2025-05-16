@@ -18,39 +18,28 @@ from aiogram.utils.markdown import hbold
 import os
 from PIL import Image
 from io import BytesIO
-
 import requests
+import json
+import os
 
+GROUPS_FILE = "groups.json"
 
-groups_list = []
+def load_groups():
+    if os.path.exists(GROUPS_FILE):
+        with open(GROUPS_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+def save_groups(groups):
+    with open(GROUPS_FILE, "w") as f:
+        json.dump(groups, f, indent=2)
+
 
 client = genai.Client(api_key=GEMINI_API, )
 chat_sessions = {}
 
 
 def escape_markdown(text):
-    # data = ''
-    # opened = False
-    # skip = False
-    # for i, letter in enumerate(text):
-    #     if skip:
-    #         skip = False
-
-    #     elif letter == '*' and text[i+1] == '*':
-    #         skip = True
-    #         opened = not opened
-    #         data+="**"
-    #     elif letter == "`":
-    #         opened = not opened
-    #         data+='`'
-    #     elif letter == "*":
-    #         if opened:
-    #             data+="*"
-    #         else:
-    #             data+="\*"
-    #     else:
-    #         data+=letter
-    # return data
     return text
 
 def get_or_create_chat_session(telegram_chat_id: int, type):
@@ -95,13 +84,22 @@ bot = Bot(
         )
 )
 dp = Dispatcher()
+groups_list = load_groups()
 
 @dp.message(lambda message: not message.text or not message.text.startswith("/"))
 async def handle_group_messages(message: Message):
     global active_groups
     chat = get_or_create_chat_session(message.chat.id, message.chat.type)
-    if message.chat.id not in groups_list and message.chat.type in ['supergroup', 'group']:
-        groups_list.append(message.chat.id)
+    if message.chat.type in ['supergroup', 'group']:
+        if not any(g["id"] == message.chat.id for g in groups_list):
+            group_data = {
+                "id": message.chat.id,
+                "title": message.chat.title or "Unknown",
+                "url": f"https://t.me/{message.chat.username}" if message.chat.username else "Private/No link"
+            }
+            groups_list.append(group_data)
+            save_groups(groups_list)
+            print(f"✅ Bot already added — saved group: {group_data['title']} ({group_data['id']})")
     user = message.from_user
     full_name = f"{user.first_name} {user.last_name or ''}".strip()
     original  = ""
@@ -173,16 +171,27 @@ async def handle_group_messages(message: Message):
 
 @dp.my_chat_member()
 async def handle_bot_status_change(event: ChatMemberUpdated):
-    global groups_list
     chat = event.chat
     new_status = event.new_chat_member.status
+    print(new_status)
 
     if chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
-        if new_status in ("administrator"):
-            groups_list.append(chat.id)
-            print(f"✅ Bot added to: {chat.title} ({chat.id})")
-        elif new_status in ("left", "kicked"):
-            groups_list.remove(chat.id)
+        groups_list = load_groups()  # Always get fresh version
+
+        if new_status == "administrator":
+            if not any(g["id"] == chat.id for g in groups_list):
+                group_data = {
+                    "id": chat.id,
+                    "title": chat.title or "Unknown",
+                    "url": f"https://t.me/{chat.username}" if chat.username else "Private/No link"
+                }
+                groups_list.append(group_data)
+                save_groups(groups_list)
+                print(f"✅ Bot added to: {chat.title} ({chat.id})")
+
+        elif new_status in ("left", "kicked", "removed"):
+            groups_list = [g for g in groups_list if g["id"] != chat.id]
+            save_groups(groups_list)
             print(f"❌ Bot removed from: {chat.title} ({chat.id})")
 
 
