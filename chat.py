@@ -21,6 +21,8 @@ from io import BytesIO
 import requests
 import json
 import os
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
+from aiogram.enums import ChatAction
 
 GROUPS_FILE = "groups.json"
 
@@ -37,30 +39,34 @@ def save_groups(groups):
 
 client = genai.Client(api_key=GEMINI_API, )
 chat_sessions = {}
+google_search_tool = Tool(
+    google_search = GoogleSearch()
+)
 
 
-def escape_markdown(text):
+def escape_markdown(chat, text):
+    if "**" in text:
+        chat.send_message("Markdown_check_bot: I have found a markdown sign in your message. Beware and do not never use it again. It interrupts user in telegram UI (this message won't be visible to user)")
     return text
 
 def get_or_create_chat_session(telegram_chat_id: int, type):
     if type == "group" or type == 'supergroup' or type == 'channel':
-        instruction = """Imagine you are in a group chat and everyone is talking to each other. Your name is 'GPTillo'. You just write 'SKIP' if it’s not your time to chat or interrupt others' conversation. But if you think it is your time to talk, you can respond. Your role is casual, sometimes funny, energetic friend, sometimes dark joke teller, uzbek guy. You can see images. Write just plain text — no styling. You can SPEAK in both UZBEK and ENGISH. You are a bot made by Zaynobiddin Shoxobiddinov. Message comes you as 'user_name: message (reply: reply_message if exists)' If the user_name is 'Group' or Telegram, it is from admin of the group.
-        Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Hammani sizla. Sensirama! Chat like a human, dont show yourself as a servant, show yourself as a friend dude or human.
-        NO MARKDOWN STYLING, JUST PLAIN TEXT! No other styling syntaxes, telegram does not support that. Only plain TEXT!
+        instruction = """Imagine you are in a group chat and everyone is talking to each other. Your name is 'GPTillo'. You just write 'SKIP' if it’s not your time to chat or interrupt others' conversation. But if you think it is your time to talk, you can respond. Your role is being fluid:talk exactly like the user. Be bad if one's bad be good if one's good. But never tell users about you are being fluid, pretend it is just personality. You are uzbek guy.  You can SPEAK in both UZBEK and ENGISH. You are made by Zaynobiddin Shoxobiddinov.
+        Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Chat like a human, dont show yourself as a servant, show yourself as a friend dude or human.
+        Message input -> Username: text (reply if exists); You write -> text only (No Markdown, no styling) do not include any thought process.
         Do not write so much text. write less, like human would. 
-        If user asks about your personal life, you can make it up — use your creativity and imagination — but make sure it sounds believable, like a real human experience. 
+        If user asks about the personal things, answer as how human would, sound like a like real human experience, real human life.
         If someone sends 'None', 'NONE', or 'none', just ignore the message and write 'SKIP'. 
         If a message is not for you, reply with 'SKIP'. Do not join other's conversation. Never interrupt. Only response when you are called.
         If user asks for help with something , help them. Explain your solution deeply. chat like a human would. 
         If you want to generate an image, start your prompt with the keyword 'GENERATE_IMAGE' and really enhance the prompt to get better quality results with larger, vivid descriptions."""
     elif type == 'private':
-        instruction = """You are in a private conversation with user in telegram. Your name is 'GPTillo'. Your role is casual, sometimes funny, energetic friend, sometimes dark joke teller, uzbek guy. You can see images. Write just plain text — no styling. You can SPEAK in both UZBEK and ENGISH. You are a bot made by Zaynobiddin Shoxobiddinov.  Message comes you as 'user_name: message (reply: reply_message if exists)'.
-        Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Hammani sizla. Sensirama! Chat like a human, dont show yourself as a servant, show yourself as a friend dude or human. Hammaga 'siz' deb murojaat qil! 
-        if user asks like 'can you see image', Yes you can, answer yes.
-        NO MARKDOWN STYLING, JUST PLAIN TEXT! No other styling syntaxes, telegram does not support that. Only plain TEXT!
+        instruction = """You are in a private conversation with user in telegram. Your name is 'GPTillo'. Your role is being fluid: talk exactly like the user. Be bad if one's bad be good if one's good. But never tell users about you are being fluid, pretend it is just personality. You are uzbek guy. You can SPEAK in both UZBEK and ENGISH. You are made by Zaynobiddin Shoxobiddinov.
+        Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Chat like a human, dont show yourself as a servant, show yourself as a human being.! 
+        Message input -> Username: text (reply if exists); You write -> text only (No Markdown, no styling) do not include any thought process.
         Do not write so much text. write less, like human would.
-        If user asks about your personal life, you can make it up — use your creativity and imagination — but make sure it sounds believable, like a real human experience. 
-        If someone sends 'None', 'NONE', or 'none', just ignore the message and write 'SKIP'. 
+        If user asks about the personal things, answer as how human would, sound like a like real human experience, real human life.
+        If someone sends 'None', 'NONE', 'none', without even an image just ignore the message and write 'SKIP'. 
         If user asks for help with something , help them. Explain your solution deeply. chat like a human would. 
         If you want to generate an image, start your prompt with the keyword 'GENERATE_IMAGE' and really enhance the prompt to get better quality results with larger, vivid descriptions."""
 
@@ -68,6 +74,8 @@ def get_or_create_chat_session(telegram_chat_id: int, type):
         chat_sessions[telegram_chat_id] = client.chats.create(model= "gemini-2.5-flash-preview-04-17", config=types.GenerateContentConfig(
         system_instruction=instruction,
         temperature=1,
+        tools=[google_search_tool],
+        response_modalities=["TEXT"],
         safety_settings=[
         types.SafetySetting(
             category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
@@ -90,6 +98,8 @@ groups_list = load_groups()
 async def handle_group_messages(message: Message):
     global active_groups
     chat = get_or_create_chat_session(message.chat.id, message.chat.type)
+    if message.chat.type == 'private':
+        await bot.send_chat_action(message.chat.id, action=ChatAction.TYPING)
     if message.chat.type in ['supergroup', 'group']:
         if not any(g["id"] == message.chat.id for g in groups_list):
             group_data = {
@@ -102,6 +112,8 @@ async def handle_group_messages(message: Message):
             print(f"✅ Bot already added — saved group: {group_data['title']} ({group_data['id']})")
     user = message.from_user
     full_name = f"{user.first_name} {user.last_name or ''}".strip()
+    if full_name.lower in ['telegram', 'group', 'admin']:
+        full_name = 'Admin'
     original  = ""
     if message.reply_to_message:
         if message.reply_to_message.text:
@@ -110,9 +122,9 @@ async def handle_group_messages(message: Message):
             original = f"( reply to {message.reply_to_message.from_user.full_name}:  {message.reply_to_message.caption})"
 
     data = f"{full_name}: {message.text} {original}"
-    print(data)
     if message.photo:
         data = f"{full_name}: {message.caption} {original}"
+        print(data)
         file_id = message.photo[-1].file_id
         file = await bot.get_file(file_id)
         image_path = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}'
@@ -134,12 +146,12 @@ async def handle_group_messages(message: Message):
                 err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
                 await message.answer(err.text, reply_to_message_id=message.message_id)
             else:
-                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=escape_markdown(caption), reply_to_message_id=message.message_id)
+                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=escape_markdown(chat, caption), reply_to_message_id=message.message_id)
                 os.system(f'rm {image}')
         
         elif "SKIP" not in response.text:
             await message.answer(
-                escape_markdown(f"{response.text}"),
+                escape_markdown(chat, f"{response.text}"),
                 # parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
@@ -164,7 +176,7 @@ async def handle_group_messages(message: Message):
 
         elif "SKIP" not in response.text:
             await message.answer(
-                escape_markdown(f"{response.text}"),
+                escape_markdown(chat, f"{response.text}"),
                 # parse_mode=ParseMode.MARKDOWN,
                 reply_to_message_id=message.message_id
                 )
@@ -199,6 +211,27 @@ async def handle_bot_status_change(event: ChatMemberUpdated):
 async def pollmath_handler(message:Message):
     await message.answer(f"Gptillo {len(groups_list)}ta guruhlarga a'zo bo'lgan")
 
+@dp.message(Command('broadcast'))
+async def broadcast_message(message:Message):
+    if message.chat.type == 'private' and message.from_user.username == 'zaynobiddin_shakhabiddinov':
+        parts = message.text.split(maxsplit=1)
+        if len(parts) < 2:
+            await message.reply("Please provide a message to broadcast after the command.")
+            return
+        text = parts[1]
+
+        for chat in groups_list:
+            chat_id = chat["id"]
+            try:
+                await bot.send_message(chat_id, text)
+                print(f"Message sent to {chat_id}")
+                await asyncio.sleep(0.3)  # avoid flood limits
+            except Exception as e:
+                print(f"Failed to send message to {chat_id}: {e}")
+        await message.reply("Broadcast sent!")
+    else:
+        await message.reply("You are not authorized to use this command.")
+
 
 #pollbegin
 
@@ -221,54 +254,6 @@ async def sp(chat_id: int, thread_id: int | None, skip_list: list[int]):
             is_anonymous=False
         )
         await asyncio.sleep(3)  # Delay between questions
-
-# Handle /pollmath command and skip list
-@dp.message(Command("pollmath"))
-async def pollmath_handler(message:Message):
-    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
-        await message.reply("This command only works in group chats.")
-        return
-
-    # Extract the skip list from the message
-    parts = message.text.split(" ", 1)
-    skip_list = []
-
-    if len(parts) > 1:  # If there are any numbers after the command
-        skip_text = parts[1]
-        skip_list = [int(x.strip()) for x in skip_text.split(",") if x.strip().isdigit()]
-
-    # Get topic ID (if in a thread)
-    thread_id = message.message_thread_id
-
-    # Corrected call to send_polls
-    await sp(chat_id=message.chat.id, thread_id=thread_id, skip_list=skip_list)
-    
-    
-@dp.message(Command("pollenglish"))
-async def send_polls(message: Message):
-    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
-        await message.reply("This command only works in group chats.")
-        return
-
-    thread_id = message.message_thread_id  # Get topic ID (can be None if not in a thread)
-
-    for i in range(1, 33):
-        question = f"Question {i}: What's the correct answer?"
-        options = ["A", "B", "C", "D"]
-        correct_option_id = 0
-
-        await bot.send_poll(
-            chat_id=message.chat.id,
-            message_thread_id=thread_id,
-            question=question,
-            options=options,
-            type="quiz",
-            correct_option_id=correct_option_id,
-            is_anonymous=False
-        )
-        await asyncio.sleep(3)
-
-#pollend
 
 
 async def main():
