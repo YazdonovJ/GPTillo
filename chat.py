@@ -24,8 +24,6 @@ import os
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 from aiogram.enums import ChatAction
 
-import builtins
-builtins.print = lambda *args, **kwargs: __builtins__.print(*args, flush=True, **kwargs)
 
 GROUPS_FILE = "groups.json"
 
@@ -112,7 +110,7 @@ async def handle_group_messages(message: Message):
             }
             groups_list.append(group_data)
             save_groups(groups_list)
-            print(f"✅ Bot already added — saved group: {group_data['title']} ({group_data['id']})")
+            print(f"✅ Bot already added — saved group: {group_data['title']} ({group_data['id']})", flush=True)
     user = message.from_user
     full_name = f"{user.first_name} {user.last_name or ''}".strip()
     if full_name.lower in ['telegram', 'group', 'admin']:
@@ -127,7 +125,7 @@ async def handle_group_messages(message: Message):
     data = f"{full_name}: {message.text} {original}"
     if message.photo:
         data = f"{full_name}: {message.caption} {original}"
-        print(data)
+        print(data, flush=True)
         file_id = message.photo[-1].file_id
         file = await bot.get_file(file_id)
         image_path = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}'
@@ -162,8 +160,8 @@ async def handle_group_messages(message: Message):
 
     else:
         response  = chat.send_message(data,)
-        print(data)
-        print("GPTillo: ",response.text)
+        print(data, flush=True)
+        print(f"GPTillo: {response.text}", flush=True)
         if "GENERATE_IMAGE" in response.text:
             response = response.text
             prompt = response.split("GENERATE_IMAGE")[1]
@@ -188,7 +186,7 @@ async def handle_group_messages(message: Message):
 async def handle_bot_status_change(event: ChatMemberUpdated):
     chat = event.chat
     new_status = event.new_chat_member.status
-    print(new_status)
+    print(new_status, flush=True)
 
     if chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
         groups_list = load_groups()  # Always get fresh version
@@ -202,12 +200,12 @@ async def handle_bot_status_change(event: ChatMemberUpdated):
                 }
                 groups_list.append(group_data)
                 save_groups(groups_list)
-                print(f"✅ Bot added to: {chat.title} ({chat.id})")
+                print(f"✅ Bot added to: {chat.title} ({chat.id})", flush=True)
 
         elif new_status in ("left", "kicked", "removed"):
             groups_list = [g for g in groups_list if g["id"] != chat.id]
             save_groups(groups_list)
-            print(f"❌ Bot removed from: {chat.title} ({chat.id})")
+            print(f"❌ Bot removed from: {chat.title} ({chat.id})", flush=True)
 
 
 @dp.message(Command("groups"))
@@ -227,10 +225,10 @@ async def broadcast_message(message:Message):
             chat_id = chat["id"]
             try:
                 await bot.send_message(chat_id, text)
-                print(f"Message sent to {chat_id}")
+                print(f"Message sent to {chat_id}", flush=True)
                 await asyncio.sleep(0.3)  # avoid flood limits
             except Exception as e:
-                print(f"Failed to send message to {chat_id}: {e}")
+                print(f"Failed to send message to {chat_id}: {e}", flush=True)
         await message.reply("Broadcast sent!")
     else:
         await message.reply("You are not authorized to use this command.")
