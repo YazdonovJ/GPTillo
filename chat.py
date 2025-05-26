@@ -24,6 +24,9 @@ import os
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 from aiogram.enums import ChatAction
 
+import builtins
+builtins.print = lambda *args, **kwargs: __builtins__.print(*args, flush=True, **kwargs)
+
 GROUPS_FILE = "groups.json"
 
 def load_groups():
