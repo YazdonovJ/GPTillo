@@ -124,7 +124,7 @@ async def handle_group_messages(message: Message):
 
     data = f"{full_name}: {message.text} {original}"
     if message.photo:
-        data = f"{full_name}: {message.caption} {original}"
+        data = f"{full_name}: {message.caption if message.caption else 'Image sent'} {original}"
         print(data, flush=True)
         file_id = message.photo[-1].file_id
         file = await bot.get_file(file_id)
@@ -171,7 +171,7 @@ async def handle_group_messages(message: Message):
                 err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
                 await message.answer(err.text, reply_to_message_id=message.message_id)
             else:
-                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=escape_markdown(caption), reply_to_message_id=message.message_id)
+                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=escape_markdown(chat, caption), reply_to_message_id=message.message_id)
                 os.system(f'rm {image}')
         
 
