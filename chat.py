@@ -23,6 +23,7 @@ import json
 import os
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 from aiogram.enums import ChatAction
+from aiogram.types import FSInputFile
 
 
 GROUPS_FILE = "groups.json"
@@ -222,6 +223,8 @@ async def handle_bot_status_change(event: ChatMemberUpdated):
 @dp.message(Command("groups"))
 async def pollmath_handler(message:Message):
     await message.answer(f"Gptillo {len(groups_list)}ta guruhlarga a'zo bo'lgan")
+    file = FSInputFile('errors.txt')
+    await message.answer_document(file)
 
 @dp.message(Command('broadcast'))
 async def broadcast_message(message:Message):
