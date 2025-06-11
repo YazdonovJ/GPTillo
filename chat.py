@@ -156,7 +156,7 @@ async def handle_group_messages(message: Message):
             user_data = {
                 'id': message.from_user.id,
                 'username':message.from_user.username or "Unknown",
-                'name': str(message.from_user.first_name + " " + message.from_user.last_name) or "Unknown",
+                'name': str(message.from_user.first_name + " " + message.from_user.last_name if message.from_user.last_name else " ") or "Unknown",
             }
             users_list.append(user_data)
             save_users(users_list)
