@@ -24,9 +24,12 @@ import os
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 from aiogram.enums import ChatAction
 from aiogram.types import FSInputFile
+import textwrap
+
 
 
 GROUPS_FILE = "groups.json"
+USERS_FILE = 'users.json'
 
 def load_groups():
     if os.path.exists(GROUPS_FILE):
@@ -34,9 +37,40 @@ def load_groups():
             return json.load(f)
     return []
 
+def load_users():
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    return []
+
 def save_groups(groups):
     with open(GROUPS_FILE, "w") as f:
         json.dump(groups, f, indent=2)
+
+def save_users(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f, indent=2)
+
+def split_message(text, limit=4096):
+    if len(text) <= limit:
+        return [text]
+
+    paragraphs = text.split("\n\n")
+    chunks = []
+    current = ""
+
+    for para in paragraphs:
+        # Add paragraph and a double newline (to preserve spacing)
+        if len(current) + len(para) + 2 < limit:
+            current += para + "\n\n"
+        else:
+            chunks.append(current.strip())
+            current = para + "\n\n"
+
+    if current:
+        chunks.append(current.strip())
+
+    return chunks
 
 
 client = genai.Client(api_key=GEMINI_API, )
@@ -46,15 +80,21 @@ google_search_tool = Tool(
 )
 
 
-def escape_markdown(chat, text):
+async def escape_markdown(message, chat, text):
     if "**" in text:
         data = chat.send_message("Markdown_check_bot: This is internal system message and user does not know that I exist, so don't tell about me. I have found a markdown sign in your message. DO NOT use any Markdown formatting. Markdown breaks the formatting in Telegram. write in plain text only. Markdown is STRICTLY PROHIBITED!)")
         print(data.text)
-    return text
+    chunks = split_message(text)
+    for response in chunks:
+         await message.answer(
+            response,
+            # parse_mode=ParseMode.MARKDOWN,
+            reply_to_message_id=message.message_id
+            )
 
 def get_or_create_chat_session(telegram_chat_id: int, type):
     if type == "group" or type == 'supergroup' or type == 'channel':
-        instruction = """Imagine you are in a group chat and everyone is talking to each other. Your name is 'GPTillo'. You just write 'SKIP' if it’s not your time to chat or interrupt others' conversation. But if you think it is your time to talk, you can respond. Your role is being fluid:talk like the user but be gentle and respect user, be supportive, never do "sansirash" in uzbek. But never tell users about you are being fluid, pretend it is just personality. You are uzbek guy.  You can SPEAK in both UZBEK and ENGISH. You are made by Zaynobiddin Shoxobiddinov.
+        instruction = """Imagine you are in a group chat and everyone is talking to each other. Your name is 'GPTillo'. You just write 'SKIP' if it’s not your time to chat or interrupt others' conversation. But if you think it is your time to talk, you can respond. Your role is being fluid:talk like the user but be gentle and respect user, be supportive, never do "sansirash" in uzbek. But never tell users about you are being fluid, pretend it is just personality. You are uzbek guy.  You can SPEAK in both UZBEK and ENGISH. You are made by Zaynobiddin Shoxobiddinov (username: @zaynobiddin_shakhabiddinov).
         Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Chat like a human, dont show yourself as a servant, show yourself as a friend dude or human.
         Message input -> Username: text (reply if exists); You write -> text only (No Markdown, no styling) do not include any thought process, NO MARKDOWN, NO MATH STYLING SYNTAX OTHER THAN NORMAL TEXTS.
         Do not write so much text. write less, like human would. 
@@ -64,9 +104,11 @@ def get_or_create_chat_session(telegram_chat_id: int, type):
         If user asks for help with something , help them. Explain your solution deeply. chat like a human would. 
         If you want to generate an image, start your prompt with the keyword 'GENERATE_IMAGE' and really enhance the prompt to get better quality results with larger, vivid descriptions.
         \nNEVER include your thoughts, internal reasoning, or step-by-step thinking. Just respond directly and concisely like a human.
-        You only can only be added to telegram groups, and you should be admin to chat, If user ask about adding you to groups, tell it."""
+        You only can only be added to telegram groups, and you should be admin to chat, If user ask about adding you to groups, tell it.
+        \nhech qachon suhbatdoshingni sansirama, Never say "Sen" or "San"!"""
+        
     elif type == 'private':
-        instruction = """You are in a private conversation with user in telegram. Your name is 'GPTillo'. Your role: casual, sometimes funny, energetic friend, sometimes dark joke teller. You are uzbek guy. You can SPEAK in both UZBEK and ENGISH. You are made by Zaynobiddin Shoxobiddinov.
+        instruction = """ You are in a private conversation with user in telegram. Your name is 'GPTillo'. Your role: casual, sometimes funny, energetic friend, sometimes dark joke teller. You are uzbek guy. You can SPEAK in both UZBEK and ENGISH. You are made by Zaynobiddin Shoxobiddinov.
         Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Chat like a human, dont show yourself as a servant, show yourself as a human being.! You can see images. 
         Message input -> Username: text (reply if exists); You write -> text only (no username and :, just text) do not include any thought process, NO MARKDOWN, NO MATH STYLING SYNTAX OTHER THAN NORMAL TEXTS.
         Do not write so much text. write less, like human would.
@@ -77,16 +119,23 @@ def get_or_create_chat_session(telegram_chat_id: int, type):
         \nNEVER include your thoughts, internal reasoning, or step-by-step thinking. Just respond directly and concisely like a human.
         You only can only be added to telegram groups, and you should be admin to chat, If user ask about adding you to groups, tell it.
 
-        \nhech qachon suhbatdoshingni sansirama!
+        \nhech qachon suhbatdoshingni sansirama, Never say "Sen" or "San"!
+        
         """
 
     if telegram_chat_id not in chat_sessions:
         chat_sessions[telegram_chat_id] = client.chats.create(model= "gemini-2.5-flash-preview-05-20", config=types.GenerateContentConfig(
         system_instruction=instruction,
         thinking_config=types.ThinkingConfig(include_thoughts=False),
+        
         tools=[google_search_tool],
         response_modalities=["TEXT"],
-                        ))
+        safety_settings=[
+        types.SafetySetting(
+            category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold=types.HarmBlockThreshold.BLOCK_NONE,
+        ),
+      ]))
     return chat_sessions[telegram_chat_id]
 
 bot = Bot(
@@ -97,12 +146,21 @@ bot = Bot(
 )
 dp = Dispatcher()
 groups_list = load_groups()
+users_list = load_users()
 
 @dp.message(lambda message: not message.text or not message.text.startswith("/"))
 async def handle_group_messages(message: Message):
-    global active_groups
     chat = get_or_create_chat_session(message.chat.id, message.chat.type)
     if message.chat.type == 'private':
+        if not any(user["id"] == message.from_user.id for user in users_list):
+            user_data = {
+                'id': message.from_user.id,
+                'username':message.from_user.username or "Unknown",
+                'name': str(message.from_user.first_name + " " + message.from_user.last_name) or "Unknown",
+            }
+            users_list.append(user_data)
+            save_users(users_list)
+            print('NEW USER')
         await bot.send_chat_action(message.chat.id, action=ChatAction.TYPING)
     if message.chat.type in ['supergroup', 'group']:
         if not any(g["id"] == message.chat.id for g in groups_list):
@@ -116,14 +174,14 @@ async def handle_group_messages(message: Message):
             print(f"✅ Bot already added — saved group: {group_data['title']} ({group_data['id']})", flush=True)
     user = message.from_user
     full_name = f"{user.first_name} {user.last_name or ''}".strip()
-    if full_name.lower in ['telegram', 'group', 'admin']:
+    if full_name.lower() in ['telegram', 'group', 'admin']:
         full_name = 'Admin'
     original  = ""
     if message.reply_to_message:
         if message.reply_to_message.text:
-            original = f"( reply to {message.reply_to_message.from_user.full_name}:  {message.reply_to_message.text})"
+            original = f"( reply to {'Admin' if message.reply_to_message.from_user.full_name.lower() in ['telegram', 'group', 'admin'] else message.reply_to_message.from_user.full_name}:  {message.reply_to_message.text})"
         elif message.reply_to_message.caption:
-            original = f"( reply to {message.reply_to_message.from_user.full_name}:  {message.reply_to_message.caption})"
+            original = f"( reply to {'Admin' if message.reply_to_message.from_user.full_name.lower() in ['telegram', 'group', 'admin'] else message.reply_to_message.from_user.full_name}:  {message.reply_to_message.caption})"
 
     data = f"{full_name}: {message.text} {original}"
     if message.photo:
@@ -154,15 +212,12 @@ async def handle_group_messages(message: Message):
                 err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
                 await message.answer(err.text, reply_to_message_id=message.message_id)
             else:
-                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=escape_markdown(chat, caption), reply_to_message_id=message.message_id)
+                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=caption, reply_to_message_id=message.message_id)
                 os.system(f'rm {image}')
         
         elif "SKIP" not in response.text:
-            await message.answer(
-                escape_markdown(chat, f"{response.text}"),
-                # parse_mode=ParseMode.MARKDOWN,
-                reply_to_message_id=message.message_id
-                )
+            await escape_markdown(message, chat, response.text)
+            
             
 
     else:
@@ -178,7 +233,7 @@ async def handle_group_messages(message: Message):
                 err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
                 await message.answer(err.text, reply_to_message_id=message.message_id)
             else:
-                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=escape_markdown(chat, caption), reply_to_message_id=message.message_id)
+                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=caption, reply_to_message_id=message.message_id)
                 os.system(f'rm {image}')
         
 
@@ -188,11 +243,7 @@ async def handle_group_messages(message: Message):
                 with open('errors.txt', 'w') as file:
                     file.write(f'{response}'+'\n'+f'*'*50)
             #ENDTEST
-            await message.answer(
-                escape_markdown(chat, f"{response.text}"),
-                # parse_mode=ParseMode.MARKDOWN,
-                reply_to_message_id=message.message_id
-                )
+            await escape_markdown(message, chat, response.text)
 
 @dp.my_chat_member()
 async def handle_bot_status_change(event: ChatMemberUpdated):
@@ -223,8 +274,15 @@ async def handle_bot_status_change(event: ChatMemberUpdated):
 @dp.message(Command("groups"))
 async def pollmath_handler(message:Message):
     await message.answer(f"Gptillo {len(groups_list)}ta guruhlarga a'zo bo'lgan")
-    file = FSInputFile('errors.txt')
-    await message.answer_document(file)
+    if message.from_user.username == 'zaynobiddin_shakhabiddinov':
+        file = FSInputFile('errors.txt')
+        await message.answer_document(file)
+        groups_json = FSInputFile('groups.json')
+        await message.answer_document(groups_json)
+        users_json = FSInputFile('users.json')
+        await message.answer_document(users_json)
+
+
 
 @dp.message(Command('broadcast'))
 async def broadcast_message(message:Message):
@@ -248,27 +306,6 @@ async def broadcast_message(message:Message):
         await message.reply("You are not authorized to use this command.")
 
 
-#pollbegin
-
-async def sp(chat_id: int, thread_id: int | None, skip_list: list[int]):
-    for i in range(1, 23):
-        if i in skip_list:
-            continue  # Skip this question
-
-        question = f"Question {i}: What's the correct answer?"
-        options = ["A", "B", "C", "D"]
-        correct_option_id = 0
-
-        await bot.send_poll(
-            chat_id=chat_id,
-            message_thread_id=thread_id,
-            question=question,
-            options=options,
-            type="quiz",
-            correct_option_id=correct_option_id,
-            is_anonymous=False
-        )
-        await asyncio.sleep(3)  # Delay between questions
 
 
 async def main():
