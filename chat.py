@@ -1,5 +1,6 @@
 from aiogram import Bot, Dispatcher, types
 import aiogram
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.enums import ParseMode
 from aiogram.types import Message, ChatMemberUpdated
 from aiogram.filters import Command
@@ -8,69 +9,21 @@ import asyncio
 from aiogram.client.default import DefaultBotProperties
 from google import genai
 from tokens import *
-import re
 from google import genai
 from google.genai import types
 from gen import generate_image
 from aiogram.types import FSInputFile
 from aiogram.enums import ChatType
-from aiogram.utils.markdown import hbold
 import os
 from PIL import Image
 from io import BytesIO
 import requests
-import json
 import os
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 from aiogram.enums import ChatAction
 from aiogram.types import FSInputFile
-import textwrap
+from functions import *
 
-
-
-GROUPS_FILE = "groups.json"
-USERS_FILE = 'users.json'
-
-def load_groups():
-    if os.path.exists(GROUPS_FILE):
-        with open(GROUPS_FILE, "r") as f:
-            return json.load(f)
-    return []
-
-def load_users():
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
-    return []
-
-def save_groups(groups):
-    with open(GROUPS_FILE, "w") as f:
-        json.dump(groups, f, indent=2)
-
-def save_users(users):
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f, indent=2)
-
-def split_message(text, limit=4096):
-    if len(text) <= limit:
-        return [text]
-
-    paragraphs = text.split("\n\n")
-    chunks = []
-    current = ""
-
-    for para in paragraphs:
-        # Add paragraph and a double newline (to preserve spacing)
-        if len(current) + len(para) + 2 < limit:
-            current += para + "\n\n"
-        else:
-            chunks.append(current.strip())
-            current = para + "\n\n"
-
-    if current:
-        chunks.append(current.strip())
-
-    return chunks
 
 
 client = genai.Client(api_key=GEMINI_API, )
@@ -275,6 +228,7 @@ async def handle_bot_status_change(event: ChatMemberUpdated):
 async def pollmath_handler(message:Message):
     await message.answer(f"Gptillo {len(groups_list)}ta guruhlarga a'zo bo'lgan")
     if message.from_user.username == 'zaynobiddin_shakhabiddinov':
+        await message.answer(f"Gptillo bilan {len(users_list)}ta insonlar direct suhbatda")
         file = FSInputFile('errors.txt')
         await message.answer_document(file)
         groups_json = FSInputFile('groups.json')
@@ -289,8 +243,23 @@ async def broadcast_message(message:Message):
     if message.chat.type == 'private' and message.from_user.username == 'zaynobiddin_shakhabiddinov':
         parts = message.text.split(maxsplit=1)
         if len(parts) < 2:
-            await message.reply("Please provide a message to broadcast after the command.")
+            if message.reply_to_message:
+                replied = message.reply_to_message.message_id
+                from_chat_id = message.reply_to_message.chat.id
+                for chat in groups_list:
+                    chat_id = chat['id']
+                    try:
+                        await bot.forward_message(
+                            chat_id=chat_id,
+                            from_chat_id=from_chat_id,
+                            message_id=replied
+                        )
+                    except Exception as e:
+                        print(f"Failed to send message to {chat_id}: {e}", flush=True)
+            else:
+                await message.reply("Please provide a message to broadcast after the command.")
             return
+        
         text = parts[1]
 
         for chat in groups_list:
