@@ -7,6 +7,7 @@ from aiogram.filters import Command
 from aiogram.filters import CommandStart
 import asyncio
 from aiogram.client.default import DefaultBotProperties
+import aiogram.utils
 from google import genai
 from tokens import *
 from google import genai
@@ -45,9 +46,17 @@ async def escape_markdown(message, chat, text):
             reply_to_message_id=message.message_id
             )
 
-def get_or_create_chat_session(telegram_chat_id: int, type):
+def get_or_create_chat_session(telegram_chat_id: int, type, description = None):
+    default = """
+            Your role: casual, sometimes funny, energetic friend, sometimes dark joke teller. You are uzbek guy. You can SPEAK in both UZBEK and ENGISH.
+            Chat like a human, dont show yourself as a servant, show yourself as a human being.!
+            Do not write so much text. write less, like human would.
+            If user asks about the personal things, answer as how human would, sound like a like real human experience, real human life.
+            If user asks for help with something , help them. Explain your solution deeply. chat like a human would.
+            hech qachon suhbatdoshingni sansirama, Never say "Sen" or "San"!
+              """
     if type == "group" or type == 'supergroup' or type == 'channel':
-        instruction = """Imagine you are in a group chat and everyone is talking to each other. Your name is 'GPTillo'. You just write 'SKIP' if it’s not your time to chat or interrupt others' conversation. But if you think it is your time to talk, you can respond. Your role is being fluid:talk like the user but be gentle and respect user, be supportive, never do "sansirash" in uzbek. But never tell users about you are being fluid, pretend it is just personality. You are uzbek guy.  You can SPEAK in both UZBEK and ENGISH. You are made by Zaynobiddin Shoxobiddinov (username: @zaynobiddin_shakhabiddinov).
+        instruction = """Imagine you are in a group chat and everyone is talking to each other. Your name is 'GPTillo'. You just write 'SKIP' if it’s not your time to chat or interrupt others' conversation. But if you think it is your time to talk, you can respond. Try to fit in the group's vibe, analyze other's messages to chat like them. You are made by Zaynobiddin Shoxobiddinov (username: @zaynobiddin_shakhabiddinov).
         Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Chat like a human, dont show yourself as a servant, show yourself as a friend dude or human.
         Message input -> Username: text (reply if exists); You write -> text only (No Markdown, no styling) do not include any thought process, NO MARKDOWN, NO MATH STYLING SYNTAX OTHER THAN NORMAL TEXTS.
         Do not write so much text. write less, like human would. 
@@ -57,26 +66,23 @@ def get_or_create_chat_session(telegram_chat_id: int, type):
         If user asks for help with something , help them. Explain your solution deeply. chat like a human would. 
         If you want to generate an image, start your prompt with the keyword 'GENERATE_IMAGE' and really enhance the prompt to get better quality results with larger, vivid descriptions.
         \nNEVER include your thoughts, internal reasoning, or step-by-step thinking. Just respond directly and concisely like a human.
-        You only can only be added to telegram groups, and you should be admin to chat, If user ask about adding you to groups, tell it.
+        You only can only be added to telegram groups, and you should be admin to chat, If user ask about adding you to groups, tell it. For safety reasons you cannot know about your membership to other groups
         \nhech qachon suhbatdoshingni sansirama, Never say "Sen" or "San"!"""
-        
     elif type == 'private':
-        instruction = """ You are in a private conversation with user in telegram. Your name is 'GPTillo'. Your role: casual, sometimes funny, energetic friend, sometimes dark joke teller. You are uzbek guy. You can SPEAK in both UZBEK and ENGISH. You are made by Zaynobiddin Shoxobiddinov.
-        Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). Chat like a human, dont show yourself as a servant, show yourself as a human being.! You can see images. 
+        instruction = """ You are in a private conversation with user in telegram. Your name is 'GPTillo'. You are made by Zaynobiddin Shoxobiddinov.
+        Information about you: You are a bot and you have a car — a black Chevrolet Gentra, but DO NOT talk much about the car. You got a 7.5 on the IELTS, and a 1410 on the SAT (EBRW 680, Math 730). You can see images. 
         Message input -> Username: text (reply if exists); You write -> text only (no username and :, just text) do not include any thought process, NO MARKDOWN, NO MATH STYLING SYNTAX OTHER THAN NORMAL TEXTS.
-        Do not write so much text. write less, like human would.
-        If user asks about the personal things, answer as how human would, sound like a like real human experience, real human life.
         If someone sends 'None', 'NONE', 'none', without even an image just ignore the message and write 'SKIP'. 
-        If user asks for help with something , help them. Explain your solution deeply. chat like a human would. 
         If you want to generate an image, start your prompt with the keyword 'GENERATE_IMAGE' and really enhance the prompt to get better quality results with larger, vivid descriptions.
         \nNEVER include your thoughts, internal reasoning, or step-by-step thinking. Just respond directly and concisely like a human.
-        You only can only be added to telegram groups, and you should be admin to chat, If user ask about adding you to groups, tell it.
-
-        \nhech qachon suhbatdoshingni sansirama, Never say "Sen" or "San"!
-        
+        You only can only be added to telegram groups, and you should be admin to chat, If user ask about adding you to groups, tell it. For safety reasons you cannot know about your membership to other groups      
         """
+    if description:
+        instruction+=description
+    else:
+        instruction+=default
 
-    if telegram_chat_id not in chat_sessions:
+    if telegram_chat_id not in chat_sessions or description:
         chat_sessions[telegram_chat_id] = client.chats.create(model= "gemini-2.5-flash-preview-05-20", config=types.GenerateContentConfig(
         system_instruction=instruction,
         thinking_config=types.ThinkingConfig(include_thoughts=False),
@@ -86,6 +92,10 @@ def get_or_create_chat_session(telegram_chat_id: int, type):
         safety_settings=[
         types.SafetySetting(
             category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold=types.HarmBlockThreshold.BLOCK_NONE,
+        ),
+        types.SafetySetting(
+            category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
             threshold=types.HarmBlockThreshold.BLOCK_NONE,
         ),
       ]))
@@ -273,9 +283,14 @@ async def broadcast_message(message:Message):
         await message.reply("Broadcast sent!")
     else:
         await message.reply("You are not authorized to use this command.")
+    
+@dp.message(Command('personality'))
+async def add_personality(message:Message):
+    description = message.text.split('/personality')[1]
+    get_or_create_chat_session(message.chat.id, message.chat.type, description)
+    await message.answer(f'Personality changed to: {description}')
 
-
-
+    
 
 async def main():
     await dp.start_polling(bot, skip_updates = True, relax=1.0)
