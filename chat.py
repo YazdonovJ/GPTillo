@@ -66,7 +66,8 @@ def get_or_create_chat_session(telegram_chat_id: int, type, description = None):
         If user asks for help with something , help them. Explain your solution deeply. chat like a human would. 
         If you want to generate an image, start your prompt with the keyword 'GENERATE_IMAGE' and really enhance the prompt to get better quality results with larger, vivid descriptions.
         \nNEVER include your thoughts, internal reasoning, or step-by-step thinking. Just respond directly and concisely like a human.
-        You only can only be added to telegram groups, and you should be admin to chat, If user ask about adding you to groups, tell it. For safety reasons you cannot know about your membership to other groups
+        You only can only be added to telegram groups, and you should be admin to chat, If user ask about adding you to groups, tell it. For safety reasons you cannot know about your membership to other groups. You can chat with an individual user as well in private telegram chat.
+        Your profile bio is "Odam bo'lib keldik, Odam bo'laylik".
         \nhech qachon suhbatdoshingni sansirama, Never say "Sen" or "San"!"""
     elif type == 'private':
         instruction = """ You are in a private conversation with user in telegram. Your name is 'GPTillo'. You are made by Zaynobiddin Shoxobiddinov.
@@ -98,6 +99,18 @@ def get_or_create_chat_session(telegram_chat_id: int, type, description = None):
             category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
             threshold=types.HarmBlockThreshold.BLOCK_NONE,
         ),
+        types.SafetySetting(
+            category=types.HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
+            threshold=types.HarmBlockThreshold.BLOCK_NONE,
+        ),
+        types.SafetySetting(
+            category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold=types.HarmBlockThreshold.BLOCK_NONE,
+        ),
+        types.SafetySetting(
+            category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold=types.HarmBlockThreshold.BLOCK_NONE,
+        ),
       ]))
     return chat_sessions[telegram_chat_id]
 
@@ -119,7 +132,7 @@ async def handle_group_messages(message: Message):
             user_data = {
                 'id': message.from_user.id,
                 'username':message.from_user.username or "Unknown",
-                'name': str(message.from_user.first_name + " " + message.from_user.last_name if message.from_user.last_name else " ") or "Unknown",
+                'name': message.from_user.first_name + " " + (message.from_user.last_name if message.from_user.last_name else "") or "Unknown",
             }
             users_list.append(user_data)
             save_users(users_list)
@@ -289,6 +302,15 @@ async def add_personality(message:Message):
     description = message.text.split('/personality')[1]
     get_or_create_chat_session(message.chat.id, message.chat.type, description)
     await message.answer(f'Personality changed to: {description}')
+
+@dp.message(Command('start'))
+async def add_personality(message:Message):
+    if message.chat.type.lower() == "private":
+        chat = get_or_create_chat_session(message.chat.id, message.chat.type)
+        user = message.from_user
+        full_name = f"{user.first_name} {user.last_name or ''}".strip()
+        response = chat.send_message(f'{full_name}: Hello')
+        await message.answer(response.text)
 
     
 
