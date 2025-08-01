@@ -86,7 +86,7 @@ def get_or_create_chat_session(telegram_chat_id: int, type, description = None):
         instruction+=default
 
     if telegram_chat_id not in chat_sessions or description:
-        chat_sessions[telegram_chat_id] = client.chats.create(model= "gemini-2.5-flash-preview-05-20", config=types.GenerateContentConfig(
+        chat_sessions[telegram_chat_id] = client.chats.create(model= "gemini-2.0-flash", config=types.GenerateContentConfig(
         system_instruction=instruction,
         thinking_config=types.ThinkingConfig(include_thoughts=False),
         
