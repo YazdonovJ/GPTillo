@@ -1,5 +1,6 @@
 from aiogram import Bot, Dispatcher, types
 import aiogram
+from google.genai.errors import ClientError
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.enums import ParseMode
 from aiogram.types import Message, ChatMemberUpdated
@@ -128,100 +129,105 @@ users_list = load_users()
 
 @dp.message(lambda message: not message.text or not message.text.startswith("/"))
 async def handle_group_messages(message: Message):
-    chat = get_or_create_chat_session(message.chat.id, message.chat.type)
-    if message.chat.type == 'private':
-        if not any(user["id"] == message.from_user.id for user in users_list):
-            user_data = {
-                'id': message.from_user.id,
-                'username':message.from_user.username or "Unknown",
-                'name': message.from_user.first_name + " " + (message.from_user.last_name if message.from_user.last_name else "") or "Unknown",
-            }
-            users_list.append(user_data)
-            save_users(users_list)
-            print('NEW USER')
-        await bot.send_chat_action(message.chat.id, action=ChatAction.TYPING)
-    if message.chat.type in ['supergroup', 'group']:
-        if not any(g["id"] == message.chat.id for g in groups_list):
-            group_data = {
-                "id": message.chat.id,
-                "title": message.chat.title or "Unknown",
-                "url": f"https://t.me/{message.chat.username}" if message.chat.username else "Private/No link"
-            }
-            groups_list.append(group_data)
-            save_groups(groups_list)
-            print(f"✅ Bot already added — saved group: {group_data['title']} ({group_data['id']})", flush=True)
-    user = message.from_user
-    full_name = f"{user.first_name} {user.last_name or ''}".strip()
-    if full_name.lower() in ['telegram', 'group', 'admin']:
-        full_name = 'Admin'
-    original  = ""
-    if message.reply_to_message:
-        if message.reply_to_message.text:
-            original = f"( reply to {'Admin' if message.reply_to_message.from_user.full_name.lower() in ['telegram', 'group', 'admin'] else message.reply_to_message.from_user.full_name}:  {message.reply_to_message.text})"
-        elif message.reply_to_message.caption:
-            original = f"( reply to {'Admin' if message.reply_to_message.from_user.full_name.lower() in ['telegram', 'group', 'admin'] else message.reply_to_message.from_user.full_name}:  {message.reply_to_message.caption})"
+    try:
+        chat = get_or_create_chat_session(message.chat.id, message.chat.type)
+        if message.chat.type == 'private':
+            if not any(user["id"] == message.from_user.id for user in users_list):
+                user_data = {
+                    'id': message.from_user.id,
+                    'username':message.from_user.username or "Unknown",
+                    'name': message.from_user.first_name + " " + (message.from_user.last_name if message.from_user.last_name else "") or "Unknown",
+                }
+                users_list.append(user_data)
+                save_users(users_list)
+                print('NEW USER')
+            await bot.send_chat_action(message.chat.id, action=ChatAction.TYPING)
+        if message.chat.type in ['supergroup', 'group']:
+            if not any(g["id"] == message.chat.id for g in groups_list):
+                group_data = {
+                    "id": message.chat.id,
+                    "title": message.chat.title or "Unknown",
+                    "url": f"https://t.me/{message.chat.username}" if message.chat.username else "Private/No link"
+                }
+                groups_list.append(group_data)
+                save_groups(groups_list)
+                print(f"✅ Bot already added — saved group: {group_data['title']} ({group_data['id']})", flush=True)
+        user = message.from_user
+        full_name = f"{user.first_name} {user.last_name or ''}".strip()
+        if full_name.lower() in ['telegram', 'group', 'admin']:
+            full_name = 'Admin'
+        original  = ""
+        if message.reply_to_message:
+            if message.reply_to_message.text:
+                original = f"( reply to {'Admin' if message.reply_to_message.from_user.full_name.lower() in ['telegram', 'group', 'admin'] else message.reply_to_message.from_user.full_name}:  {message.reply_to_message.text})"
+            elif message.reply_to_message.caption:
+                original = f"( reply to {'Admin' if message.reply_to_message.from_user.full_name.lower() in ['telegram', 'group', 'admin'] else message.reply_to_message.from_user.full_name}:  {message.reply_to_message.caption})"
 
-    data = f"{full_name}: {message.text} {original}"
-    if message.photo:
-        data = f"{full_name}: {message.caption if message.caption else 'Image sent'} {original}"
-        print(data, flush=True)
-        file_id = message.photo[-1].file_id
-        file = await bot.get_file(file_id)
-        image_path = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}'
-        image = requests.get(image_path)
-        
-        response = chat.send_message(
-            [
-                Image.open(BytesIO(image.content)),
-                data
-            ]
-        )
-        #FOR TEST
-        if response.text.startswith('thought'):
-            with open('errors.txt', 'w') as file:
-                file.write(f'{response}'+'\n'+f'*'*50)
-        #ENDTEST
-        if "GENERATE_IMAGE" in response.text:
-            response = response.text
-            prompt = response.split("GENERATE_IMAGE")[1]
-            caption = response.split("GENERATE_IMAGE")[0]
-            image = generate_image(prompt)
-            if image == 'error':
-                err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
-                await message.answer(err.text, reply_to_message_id=message.message_id)
-            else:
-                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=caption, reply_to_message_id=message.message_id)
-                os.system(f'rm {image}')
-        
-        elif "SKIP" not in response.text:
-            await escape_markdown(message, chat, response.text)
+        data = f"{full_name}: {message.text} {original}"
+        if message.photo:
+            data = f"{full_name}: {message.caption if message.caption else 'Image sent'} {original}"
+            print(data, flush=True)
+            file_id = message.photo[-1].file_id
+            file = await bot.get_file(file_id)
+            image_path = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}'
+            image = requests.get(image_path)
             
-            
-
-    else:
-        response  = chat.send_message(data,)
-        print(data, flush=True)
-        print(f"GPTillo: {response.text}", flush=True)
-        if "GENERATE_IMAGE" in response.text:
-            response = response.text
-            prompt = response.split("GENERATE_IMAGE")[1]
-            caption = response.split("GENERATE_IMAGE")[0]
-            image = generate_image(prompt)
-            if image == 'error':
-                err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
-                await message.answer(err.text, reply_to_message_id=message.message_id)
-            else:
-                await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=caption, reply_to_message_id=message.message_id)
-                os.system(f'rm {image}')
-        
-
-        elif "SKIP" not in response.text:
+            response = chat.send_message(
+                [
+                    Image.open(BytesIO(image.content)),
+                    data
+                ]
+            )
             #FOR TEST
-            if response.text.lower().startswith('thought'):
+            if response.text.startswith('thought'):
                 with open('errors.txt', 'w') as file:
                     file.write(f'{response}'+'\n'+f'*'*50)
             #ENDTEST
-            await escape_markdown(message, chat, response.text)
+            if "GENERATE_IMAGE" in response.text:
+                response = response.text
+                prompt = response.split("GENERATE_IMAGE")[1]
+                caption = response.split("GENERATE_IMAGE")[0]
+                image = generate_image(prompt)
+                if image == 'error':
+                    err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
+                    await message.answer(err.text, reply_to_message_id=message.message_id)
+                else:
+                    await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=caption, reply_to_message_id=message.message_id)
+                    os.system(f'rm {image}')
+            
+            elif "SKIP" not in response.text:
+                await escape_markdown(message, chat, response.text)
+                
+                
+
+        else:
+            response  = chat.send_message(data,)
+            print(data, flush=True)
+            print(f"GPTillo: {response.text}", flush=True)
+            if "GENERATE_IMAGE" in response.text:
+                response = response.text
+                prompt = response.split("GENERATE_IMAGE")[1]
+                caption = response.split("GENERATE_IMAGE")[0]
+                image = generate_image(prompt)
+                if image == 'error':
+                    err = chat.send_message("IMAGE GENERATOR BOT: Sorry, due to high demand, i cannot generate this image right now. Retry later... EXPLAIN IT TO USER")
+                    await message.answer(err.text, reply_to_message_id=message.message_id)
+                else:
+                    await message.answer_photo(FSInputFile(image), show_caption_above_media=True, caption=caption, reply_to_message_id=message.message_id)
+                    os.system(f'rm {image}')
+            
+
+            elif "SKIP" not in response.text:
+                #FOR TEST
+                if response.text.lower().startswith('thought'):
+                    with open('errors.txt', 'w') as file:
+                        file.write(f'{response}'+'\n'+f'*'*50)
+                #ENDTEST
+                await escape_markdown(message, chat, response.text)
+    except ClientError as e:
+        if "429 RESOURCE_EXHAUSTED" in str(e):
+            update_token_file()
+            restart_program()
 
 @dp.my_chat_member()
 async def handle_bot_status_change(event: ChatMemberUpdated):
