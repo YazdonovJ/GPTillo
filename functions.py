@@ -62,3 +62,19 @@ def restart_program():
     python = sys.executable
     print("RESTARTED")
     os.execl(python, python, *sys.argv)
+
+def get_private_prompt():
+    with open('inst_private.txt', 'r') as instruction:
+        instruction = instruction.read()
+    return instruction
+
+def get_group_prompt():
+    with open('inst_group.txt', 'r') as instruction:
+        instruction = instruction.read()
+    return instruction
+
+def get_default_prompt():
+    with open('inst_default.txt', 'r') as default:
+        default = default.read()
+    return default
+
