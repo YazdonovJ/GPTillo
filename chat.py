@@ -102,8 +102,7 @@ users_list = load_users()
 async def handle_group_messages(message: Message):
     try:
         chat = get_or_create_chat_session(message.chat.id, message.chat.type)
-        if message.chat.type == 'private':
-            if not any(user["id"] == message.from_user.id for user in users_list):
+        if not any(user["id"] == message.from_user.id for user in users_list) and message.from_user.username not in ['GroupAnonymousBot', 'Channel_Bot']:
                 user_data = {
                     'id': message.from_user.id,
                     'username':message.from_user.username or "Unknown",
@@ -112,6 +111,7 @@ async def handle_group_messages(message: Message):
                 users_list.append(user_data)
                 save_users(users_list)
                 print('NEW USER')
+        if message.chat.type == 'private':
             await bot.send_chat_action(message.chat.id, action=ChatAction.TYPING)
         if message.chat.type in ['supergroup', 'group']:
             if not any(g["id"] == message.chat.id for g in groups_list):
@@ -238,7 +238,8 @@ async def pollmath_handler(message:Message):
         all_users+=count
     await message.answer(f"Gptillo {len(groups_list)}ta guruhlarga a'zo bo'lgan")
     if message.from_user.username == 'zaynobiddin_shakhabiddinov':
-        await message.answer(f"Gptillo bilan {all_users+len(users_list)}ta insonlar suhbatda")
+        await message.answer(f"Gptillo bilan {all_users}ta insonlar guruhlarda suhbatda")
+        await message.answer(f"Gptillo bilan jami {len(users_list)}ta insonlar suhbatda")
         file = FSInputFile('errors.txt')
         await message.answer_document(file)
         groups_json = FSInputFile('groups.json')
