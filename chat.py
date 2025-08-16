@@ -230,7 +230,6 @@ async def handle_bot_status_change(event: ChatMemberUpdated):
 async def pollmath_handler(message:Message):
     all_users = 0
     for i in groups_list:
-        print(i)
         try:
             count = await bot.get_chat_member_count(chat_id=i['id'])
         except:
