@@ -28,7 +28,7 @@ from functions import *
 
 
 
-client = genai.Client(api_key=GEMINI_API, )
+client = genai.Client(AIzaSyBM5ERNIug2sLF38gAHhv8NBAhQCo0lvLM)
 chat_sessions = {}
 google_search_tool = Tool(
     google_search = GoogleSearch()
